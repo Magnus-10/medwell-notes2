@@ -173,6 +173,7 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
       <div id="setupOk" style="font-size:13px;color:var(--emerald)"></div>
     </div>
     <div class="sheet-f">
+      <button class="btn" style="flex:1;padding:11px 0" onclick="tozala()">Tozalash</button>
       <button class="btn" style="flex:1;padding:11px 0" onclick="sozlamaYop()">Yopish</button>
       <button class="btn btn-main" style="flex:2;padding:11px 0;font-size:14px" onclick="sozlamaSaqla()">Saqlash va tekshirish</button>
     </div>
@@ -193,9 +194,9 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
 
 <script>
 /* ═══════════ SOZLAMA ═══════════ */
-const LS = "bemorlar_daftari_v1";
-const LS_CFG = "bemorlar_cfg_v1";
-const JADVAL = "bemorlar";
+const LS = "daftar2_v1";
+const LS_CFG = "daftar2_cfg_v1";
+const JADVAL = "bemorlar2";
 const MANBA = ["Instagram","Telegram","Tanish orqali","Reklama","Google / Sayt","Qayta murojaat","Boshqa"];
 const HOLAT = {
   kutilmoqda:{label:"Kutilmoqda",c:"var(--amber)",bg:"var(--amber-soft)",ic:"•"},
@@ -302,7 +303,7 @@ function gateKorsat(){
     : "Davom etish uchun kirish kodini kiriting.";
   $("gateBtn").textContent = yoq ? "Kodni o'rnatish" : "Kirish";
   $("gateInput").placeholder = yoq ? "Yangi kod" : "Kirish kodi";
-  $("setupBtn").classList.toggle("hidden", !yoq);
+  $("setupBtn").textContent = yoq ? "Baza sozlamalari" : "Sozlamalarni o'zgartirish";
 }
 
 $("gateBtn").onclick = async () => {
@@ -523,6 +524,12 @@ function sozlamaOch(){
   $("setupModal").classList.remove("hidden");
 }
 function sozlamaYop(){ $("setupModal").classList.add("hidden"); }
+function tozala(){
+  if(!confirm("Kirish kodi va baza sozlamalari o'chirilsinmi? Bazadagi yozuvlar saqlanib qoladi.")) return;
+  localStorage.removeItem(LS_CFG);
+  cfg = {url:"",key:"",kod:""};
+  location.reload();
+}
 
 async function sozlamaSaqla(){
   cfg.url = $("s_url").value.trim();
