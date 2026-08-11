@@ -173,7 +173,6 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
       <div id="setupOk" style="font-size:13px;color:var(--emerald)"></div>
     </div>
     <div class="sheet-f">
-      <button class="btn" style="flex:1;padding:11px 0" onclick="tozala()">Tozalash</button>
       <button class="btn" style="flex:1;padding:11px 0" onclick="sozlamaYop()">Yopish</button>
       <button class="btn btn-main" style="flex:2;padding:11px 0;font-size:14px" onclick="sozlamaSaqla()">Saqlash va tekshirish</button>
     </div>
@@ -207,7 +206,7 @@ const HOLAT = {
 let cfg = {url:"",key:"",kod:""};
 let data = [];
 let bulut = false;
-let tahrirId = null, ochirishId = null, korinishRejim = "royxat";
+let tahrirId = null, ochirishId = null, korinishRejim = "royxat", tezFiltr = null;
 
 /* ═══════════ YORDAMCHI ═══════════ */
 const $ = id => document.getElementById(id);
@@ -333,7 +332,12 @@ async function kir(){
 function filtrlangan(){
   const q = $("qidiruv").value.trim().toLowerCase();
   const h = $("fHolat").value, m = $("fManba").value;
+  const b = bugun();
   return data.filter(y=>{
+    if(tezFiltr==="bugun"     && !(y.holat==="kutilmoqda" && y.keladigan===b)) return false;
+    if(tezFiltr==="kechikkan" && !(y.holat==="kutilmoqda" && y.keladigan && y.keladigan<b)) return false;
+    if(tezFiltr==="qayta"     && !(y.holat==="kutilmoqda" && y.qaytaAloqa && y.qaytaAloqa<=b)) return false;
+    if(tezFiltr==="keldi"     && y.holat!=="keldi") return false;
     if(h!=="hammasi" && y.holat!==h) return false;
     if(m!=="hammasi" && y.manba!==m) return false;
     if(!q) return true;
@@ -353,12 +357,17 @@ function chiz(){
     jami: data.length
   };
   $("stats").innerHTML = [
-    ["Bugun kutilmoqda",s.bugun,"var(--pine)"],
-    ["Kechikkan",s.kechikkan,"var(--rose)"],
-    ["Qayta aloqa",s.qayta,"var(--amber)"],
-    ["Keldi",s.keldi,"var(--emerald)"],
-    ["Jami",s.jami,"var(--soft)"]
-  ].map(([n,v,c])=>`<div class="chip"><b style="color:${c}">${v}</b><span>${n}</span></div>`).join("");
+    ["Bugun kutilmoqda",s.bugun,"var(--pine)","bugun"],
+    ["Kechikkan",s.kechikkan,"var(--rose)","kechikkan"],
+    ["Qayta aloqa",s.qayta,"var(--amber)","qayta"],
+    ["Keldi",s.keldi,"var(--emerald)","keldi"],
+    ["Jami",s.jami,"var(--soft)","jami"]
+  ].map(([n,v,c,k])=>{
+    const faol = (k==="jami") ? tezFiltr===null : tezFiltr===k;
+    return `<div class="chip" onclick="tezFiltrSet('${k}')" title="Bosing — shu ro'yxat ko'rinadi"
+      style="cursor:pointer;${faol?`border-color:${c};box-shadow:inset 0 0 0 1px ${c}`:""}">
+      <b style="color:${c}">${v}</b><span>${n}</span></div>`;
+  }).join("");
 
   $("tabRoyxat").style.background = korinishRejim==="royxat" ? "var(--pine)" : "#fff";
   $("tabRoyxat").style.color = korinishRejim==="royxat" ? "#fff" : "var(--soft)";
@@ -446,6 +455,16 @@ function chizStat(){
 
 function korinish(k){ korinishRejim = k; chiz(); }
 
+function tezFiltrSet(k){
+  tezFiltr = (k==="jami" || tezFiltr===k) ? null : k;
+  $("fHolat").value = "hammasi";
+  $("fManba").value = "hammasi";
+  $("qidiruv").value = "";
+  korinishRejim = "royxat";
+  chiz();
+  window.scrollTo({top:0, behavior:"smooth"});
+}
+
 /* ═══════════ FORMA ═══════════ */
 const MAYDON = ["fio","tugilgan","manzil","reja","gaplashilgan","keladigan","manba","qaytaAloqa","tel","izoh"];
 let formHolat = "kutilmoqda";
@@ -524,12 +543,7 @@ function sozlamaOch(){
   $("setupModal").classList.remove("hidden");
 }
 function sozlamaYop(){ $("setupModal").classList.add("hidden"); }
-function tozala(){
-  if(!confirm("Kirish kodi va baza sozlamalari o'chirilsinmi? Bazadagi yozuvlar saqlanib qoladi.")) return;
-  localStorage.removeItem(LS_CFG);
-  cfg = {url:"",key:"",kod:""};
-  location.reload();
-}
+
 
 async function sozlamaSaqla(){
   cfg.url = $("s_url").value.trim();
