@@ -88,6 +88,7 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
         <span id="saveState" class="mono" style="font-size:11px;color:var(--soft)"></span>
         <button class="btn" onclick="csvYukla()">Excel'ga yuklash</button>
         <button class="btn" onclick="sozlamaOch()">Sozlama</button>
+        <button class="btn" onclick="chiqish()">Chiqish</button>
         <button class="btn btn-main" onclick="yangiOch()">+ Yangi yozuv</button>
       </div>
     </div>
@@ -168,7 +169,8 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
       </p>
       <div><label class="lb">Supabase URL</label><input id="s_url" placeholder="https://xxxx.supabase.co"></div>
       <div><label class="lb">Anon key</label><input id="s_key" placeholder="eyJhbGci..."></div>
-      <div><label class="lb">Kirish kodi</label><input id="s_kod" placeholder="Xodimlar uchun kod"></div>
+      <div><label class="lb">Kirish kodi (parol)</label><input id="s_kod" placeholder="Xodimlar uchun kod">
+        <span style="font-size:12px;color:var(--soft)">Parolni almashtirish uchun shu yerga yangisini yozing va saqlang. Barcha xodimlar yangi kod bilan kiradi.</span></div>
       <div id="setupErr" style="font-size:13px;color:var(--rose)"></div>
       <div id="setupOk" style="font-size:13px;color:var(--emerald)"></div>
     </div>
@@ -195,6 +197,7 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
 /* ═══════════ SOZLAMA ═══════════ */
 const LS = "daftar2_v1";
 const LS_CFG = "daftar2_cfg_v1";
+const LS_SES = LS_CFG + "_ses";
 const JADVAL = "bemorlar2";
 const MANBA = ["Instagram","Telegram","Tanish orqali","Reklama","Google / Sayt","Qayta murojaat","Boshqa"];
 const HOLAT = {
@@ -319,7 +322,20 @@ $("gateInput").addEventListener("keydown", e => { if(e.key==="Enter") $("gateBtn
 $("gateInput").addEventListener("input", () => $("gateErr").textContent = "");
 $("setupBtn").onclick = sozlamaOch;
 
+function sessiyaSaqla(){
+  try{ localStorage.setItem(LS_SES, String(Date.now() + 30*864e5)); }catch{}
+}
+function sessiyaBormi(){
+  try{ const t = Number(localStorage.getItem(LS_SES)||0); return t > Date.now(); }catch{ return false; }
+}
+function chiqish(){
+  if(!confirm("Chiqishni tasdiqlaysizmi? Keyingi safar kirish kodi so'raladi.")) return;
+  try{ localStorage.removeItem(LS_SES); }catch{}
+  location.reload();
+}
+
 async function kir(){
+  sessiyaSaqla();
   $("gate").classList.add("hidden");
   $("app").classList.remove("hidden");
   $("todayLbl").textContent = "QABUL JURNALI · " + sana(bugun());
@@ -548,8 +564,10 @@ function sozlamaYop(){ $("setupModal").classList.add("hidden"); }
 async function sozlamaSaqla(){
   cfg.url = $("s_url").value.trim();
   cfg.key = $("s_key").value.trim();
+  const eskiKod = cfg.kod;
   cfg.kod = $("s_kod").value.trim();
   cfgSaqla();
+  if(cfg.kod && cfg.kod !== eskiKod) sessiyaSaqla();
   $("setupErr").textContent = ""; $("setupOk").textContent = "";
   if(cfg.url && cfg.key){
     try{
@@ -602,8 +620,12 @@ document.addEventListener("keydown", e => {
 });
 
 cfgYukla();
-gateKorsat();
-$("gateInput").focus();
+if(cfg.kod && sessiyaBormi()){
+  kir();
+}else{
+  gateKorsat();
+  $("gateInput").focus();
+}
 </script>
 </body>
 </html>
