@@ -13,6 +13,8 @@
   --paper:#EDF1EF; --card:#fff; --ink:#16252C; --soft:#5E7480; --rule:#D5DEDA;
   --pine:#0F5C4E; --pine-soft:#E3EFEA; --emerald:#1F9D6B;
   --amber:#B8860B; --amber-soft:#FBF1DC; --rose:#AF443E; --rose-soft:#FAE9E7;
+
+  --gold:#A97514; --gold-soft:#FAF0DC;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--paper);color:var(--ink);
@@ -146,6 +148,12 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
       </div>
       <div><label class="lb">Holat</label><div class="row" id="holatBtns" style="flex-wrap:nowrap"></div></div>
       <div><label class="lb">Izoh</label><textarea id="f_izoh" rows="3" placeholder="Qo'shimcha ma'lumot"></textarea></div>
+
+      <hr style="border:none;border-top:1px solid var(--rule);margin:2px 0">
+      <div style="font-size:12px;font-weight:600;color:var(--gold)">OTZIV</div>
+      <div><label class="lb">Otziv holati</label><div class="row" id="otzivBtns" style="flex-wrap:wrap"></div></div>
+      <div><label class="lb">Havola (video / post)</label><input id="f_otzivHavola" placeholder="https://…"></div>
+      <div><label class="lb">Otziv matni</label><textarea id="f_otzivMatn" rows="3" placeholder="Bemor aytgan fikr yoki eslatma"></textarea></div>
     </div>
     <div class="sheet-f">
       <button class="btn" style="flex:1;padding:11px 0" onclick="formYop()">Bekor qilish</button>
@@ -210,6 +218,13 @@ let cfg = {url:"",key:"",kod:""};
 let data = [];
 let bulut = false;
 let tahrirId = null, ochirishId = null, korinishRejim = "royxat", tezFiltr = null;
+
+const OTZIV = {
+  "":       {label:"Belgilanmagan", c:"var(--soft)",   bg:"var(--paper)"},
+  tayyor:   {label:"Otzivga tayyor",c:"var(--amber)",  bg:"var(--amber-soft)"},
+  olindi:   {label:"Otziv olindi",  c:"var(--emerald)",bg:"var(--pine-soft)"},
+  rad:      {label:"Rad etdi",      c:"var(--rose)",   bg:"var(--rose-soft)"}
+};
 
 /* ═══════════ YORDAMCHI ═══════════ */
 const $ = id => document.getElementById(id);
@@ -354,10 +369,11 @@ function filtrlangan(){
     if(tezFiltr==="kechikkan" && !(y.holat==="kutilmoqda" && y.keladigan && y.keladigan<b)) return false;
     if(tezFiltr==="qayta"     && !(y.holat==="kutilmoqda" && y.qaytaAloqa && y.qaytaAloqa<=b)) return false;
     if(tezFiltr==="keldi"     && y.holat!=="keldi") return false;
+    if(tezFiltr==="otziv"     && !(y.otziv==="tayyor"||y.otziv==="olindi")) return false;
     if(h!=="hammasi" && y.holat!==h) return false;
     if(m!=="hammasi" && y.manba!==m) return false;
     if(!q) return true;
-    return [y.fio,y.manzil,y.tel,y.reja,y.manba,y.izoh,y.no].join(" ").toLowerCase().includes(q);
+    return [y.fio,y.manzil,y.tel,y.reja,y.manba,y.izoh,y.otzivMatn,y.no].join(" ").toLowerCase().includes(q);
   }).sort((a,b)=>(b.no||0)-(a.no||0));
 }
 
@@ -370,6 +386,8 @@ function chiz(){
     kechikkan: kut.filter(y=>y.keladigan && y.keladigan<b).length,
     qayta: data.filter(y=>y.qaytaAloqa && y.qaytaAloqa<=b && y.holat==="kutilmoqda").length,
     keldi: data.filter(y=>y.holat==="keldi").length,
+    otziv: data.filter(y=>y.otziv==="tayyor").length,
+    otzivJami: data.filter(y=>y.otziv==="tayyor"||y.otziv==="olindi").length,
     jami: data.length
   };
   $("stats").innerHTML = [
@@ -377,6 +395,7 @@ function chiz(){
     ["Kechikkan",s.kechikkan,"var(--rose)","kechikkan"],
     ["Qayta aloqa",s.qayta,"var(--amber)","qayta"],
     ["Keldi",s.keldi,"var(--emerald)","keldi"],
+    ["Otziv"+(s.otziv?" · "+s.otziv+" tayyor":""),s.otzivJami,"var(--gold)","otziv"],
     ["Jami",s.jami,"var(--soft)","jami"]
   ].map(([n,v,c,k])=>{
     const faol = (k==="jami") ? tezFiltr===null : tezFiltr===k;
@@ -417,6 +436,7 @@ function chiz(){
           <span class="tag" style="background:${h.bg};color:${h.c}">${h.label}</span>
           ${bug?`<span class="tag" style="background:var(--pine-soft);color:var(--pine)">Bugun</span>`:""}
           ${kech?`<span class="tag" style="background:var(--rose-soft);color:var(--rose)">Kechikkan</span>`:""}
+          ${(y.otziv&&y.otziv!=="")?`<span class="tag" style="background:${OTZIV[y.otziv].bg};color:${OTZIV[y.otziv].c}">${OTZIV[y.otziv].label}</span>`:""}
         </div>
         <div style="display:flex;flex-wrap:wrap;gap:3px 20px;font-size:13px;color:var(--soft)">
           ${y.tel?`<a href="tel:${esc(y.tel.replace(/\s/g,""))}" class="mono" style="color:var(--pine);text-decoration:none;font-weight:500">${esc(y.tel)}</a>`:""}
@@ -430,6 +450,8 @@ function chiz(){
           ${y.qaytaAloqa?`<span style="color:var(--amber)">Qayta aloqa: ${sana(y.qaytaAloqa)}</span>`:""}
         </div>
         ${y.izoh?`<div style="font-size:13px;color:var(--soft);margin-top:5px;font-style:italic">${esc(y.izoh)}</div>`:""}
+        ${y.otzivMatn?`<div style="font-size:13px;color:var(--ink);margin-top:6px;padding:8px 10px;background:var(--gold-soft);border-radius:7px;line-height:1.5">"${esc(y.otzivMatn)}"</div>`:""}
+        ${y.otzivHavola?`<a href="${esc(y.otzivHavola)}" target="_blank" rel="noopener" style="font-size:12.5px;color:var(--gold);font-weight:600;display:inline-block;margin-top:5px">Otzivni ochish ↗</a>`:""}
       </div>
       <div class="acts" style="display:flex;flex-direction:column;gap:6px;align-items:flex-end">
         <div style="display:flex;gap:4px">
@@ -482,8 +504,18 @@ function tezFiltrSet(k){
 }
 
 /* ═══════════ FORMA ═══════════ */
-const MAYDON = ["fio","tugilgan","manzil","reja","gaplashilgan","keladigan","manba","qaytaAloqa","tel","izoh"];
+const MAYDON = ["fio","tugilgan","manzil","reja","gaplashilgan","keladigan","manba","qaytaAloqa","tel","izoh","otzivHavola","otzivMatn"];
+let formOtziv = "";
 let formHolat = "kutilmoqda";
+
+function otzivBtnChiz(){
+  $("otzivBtns").innerHTML = Object.keys(OTZIV).map(k=>{
+    const v=OTZIV[k], on=formOtziv===k;
+    return `<button type="button" onclick="formOtzivSet('${k}')" style="flex:1 1 46%;padding:8px 0;border-radius:8px;cursor:pointer;font-size:12.5px;font-weight:600;
+      border:1px solid ${on?v.c:"var(--rule)"};background:${on?v.bg:"#fff"};color:${on?v.c:"var(--soft)"}">${v.label}</button>`;
+  }).join("");
+}
+function formOtzivSet(k){ formOtziv=k; otzivBtnChiz(); }
 
 function holatBtnChiz(){
   $("holatBtns").innerHTML = Object.entries(HOLAT).map(([k,v])=>
@@ -494,23 +526,23 @@ function holatBtnChiz(){
 function formHolatSet(k){ formHolat = k; holatBtnChiz(); }
 
 function yangiOch(){
-  tahrirId = null; formHolat = "kutilmoqda";
+  tahrirId = null; formHolat = "kutilmoqda"; formOtziv = "";
   MAYDON.forEach(k => $("f_"+k).value = "");
   $("f_gaplashilgan").value = bugun();
   $("formTitle").textContent = "Yangi yozuv";
   $("yoshLbl").textContent = ""; $("telOgoh").textContent = "";
-  holatBtnChiz();
+  holatBtnChiz(); otzivBtnChiz();
   $("formModal").classList.remove("hidden");
   $("f_fio").focus();
 }
 
 function tahrirOch(id){
   const y = data.find(x=>x.id===id); if(!y) return;
-  tahrirId = id; formHolat = y.holat || "kutilmoqda";
+  tahrirId = id; formHolat = y.holat || "kutilmoqda"; formOtziv = y.otziv || "";
   MAYDON.forEach(k => $("f_"+k).value = y[k] || "");
   $("formTitle").textContent = "Yozuvni tahrirlash";
   $("yoshLbl").textContent = yosh(y.tugilgan); $("telOgoh").textContent = "";
-  holatBtnChiz();
+  holatBtnChiz(); otzivBtnChiz();
   $("formModal").classList.remove("hidden");
 }
 
@@ -519,7 +551,7 @@ function formYop(){ $("formModal").classList.add("hidden"); }
 async function saqla(){
   const fio = $("f_fio").value.trim();
   if(!fio){ $("f_fio").focus(); return; }
-  const obj = {holat: formHolat};
+  const obj = {holat: formHolat, otziv: formOtziv};
   MAYDON.forEach(k => obj[k] = $("f_"+k).value.trim());
   obj.fio = fio;
 
@@ -589,9 +621,10 @@ async function sozlamaSaqla(){
 
 /* ═══════════ CSV ═══════════ */
 function csvYukla(){
-  const sar = ["No","FIO","Tugilgan","Manzil","Reja","Gaplashilgan","Keladigan","Manba","Qayta aloqa","Holat","Telefon","Izoh"];
+  const sar = ["No","FIO","Tugilgan","Manzil","Reja","Gaplashilgan","Keladigan","Manba","Qayta aloqa","Holat","Telefon","Izoh","Otziv holati","Otziv havola","Otziv matni"];
   const q = filtrlangan().map(y=>[y.no,y.fio,y.tugilgan,y.manzil,y.reja,y.gaplashilgan,
-    y.keladigan,y.manba,y.qaytaAloqa,(HOLAT[y.holat]||{}).label,y.tel,y.izoh]);
+    y.keladigan,y.manba,y.qaytaAloqa,(HOLAT[y.holat]||{}).label,y.tel,y.izoh,
+    (OTZIV[y.otziv||""]||{}).label,y.otzivHavola,y.otzivMatn]);
   const csv = "\uFEFF" + [sar,...q].map(r=>r.map(c=>`"${String(c??"").replace(/"/g,'""')}"`).join(";")).join("\n");
   const a = document.createElement("a");
   a.href = URL.createObjectURL(new Blob([csv],{type:"text/csv"}));
