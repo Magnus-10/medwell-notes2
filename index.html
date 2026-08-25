@@ -88,6 +88,7 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
       </div>
       <div class="row">
         <span id="saveState" class="mono" style="font-size:11px;color:var(--soft)"></span>
+        <button class="btn hidden" id="syncBtn" onclick="sinxronla(false)">⟳</button>
         <button class="btn" onclick="csvYukla()">Excel'ga yuklash</button>
         <button class="btn" onclick="sozlamaOch()">Sozlama</button>
         <button class="btn" onclick="chiqish()">Chiqish</button>
@@ -206,6 +207,7 @@ header{background:var(--card);border-bottom:1px solid var(--rule)}
 const LS = "daftar2_v1";
 const LS_CFG = "daftar2_cfg_v1";
 const LS_SES = LS_CFG + "_ses";
+const LS_NAV = LS + "_navbat";   // bazaga yozilmagan yozuvlar navbati
 const JADVAL = "bemorlar2";
 const MANBA = ["Instagram","Telegram","Tanish orqali","Reklama","Google / Sayt","Qayta murojaat","Boshqa"];
 const HOLAT = {
@@ -274,19 +276,82 @@ async function sb(yol, opt={}){
   return t ? JSON.parse(t) : [];
 }
 
+/* ── Navbat: bazaga yetib bormagan yozuvlar ── */
+function navbatOl(){ try{ return JSON.parse(localStorage.getItem(LS_NAV)||"[]"); }catch{ return []; } }
+function navbatSaqla(n){ localStorage.setItem(LS_NAV, JSON.stringify(n)); }
+function navbatQosh(yozuv, amal){
+  const n = navbatOl().filter(function(x){ return x.yozuv.id !== yozuv.id; });
+  n.push({yozuv: yozuv, amal: amal, vaqt: Date.now()});
+  navbatSaqla(n);
+  navbatKorsat();
+}
+function navbatKorsat(){
+  const n = navbatOl();
+  const b = $("syncBtn");
+  if(!b) return;
+  if(n.length){
+    b.classList.remove("hidden");
+    b.textContent = "⟳ Saqlanmagan: " + n.length;
+    b.style.background = "var(--rose-soft)";
+    b.style.color = "var(--rose)";
+    b.style.borderColor = "var(--rose)";
+  } else b.classList.add("hidden");
+}
+
+async function sinxronla(jim){
+  const n = navbatOl();
+  if(!n.length){ if(!jim) alert("Barcha yozuvlar bazada saqlangan."); return; }
+  if(!(cfg.url && cfg.key)){ if(!jim) alert("Baza sozlanmagan."); return; }
+  let ok=0, xato=0;
+  const qolgan=[];
+  for(const el of n){
+    try{
+      if(el.amal==="ochir"){
+        await sb(JADVAL+"?id=eq."+encodeURIComponent(el.yozuv.id),{method:"DELETE"});
+      } else {
+        // bor bo'lsa yangilaymiz, yo'q bo'lsa qo'shamiz
+        const bor = await sb(JADVAL+"?id=eq."+encodeURIComponent(el.yozuv.id)+"&select=id");
+        if(bor && bor.length)
+          await sb(JADVAL+"?id=eq."+encodeURIComponent(el.yozuv.id),{method:"PATCH",body:JSON.stringify(el.yozuv)});
+        else
+          await sb(JADVAL,{method:"POST",body:JSON.stringify(el.yozuv)});
+      }
+      ok++;
+    }catch(e){ xato++; qolgan.push(el); }
+  }
+  navbatSaqla(qolgan);
+  navbatKorsat();
+  if(!jim){
+    if(xato) alert(ok+" ta yozuv saqlandi, "+xato+" tasi hali saqlanmadi. Internetni tekshirib qayta urining.");
+    else alert("Barcha yozuvlar bazaga saqlandi ✓");
+  }
+  if(ok) await yukla();
+  chiz();
+}
+
 async function yukla(){
   if(cfg.url && cfg.key){
     try{
-      data = await sb(JADVAL + "?select=*&order=no.desc");
+      const bazadan = await sb(JADVAL + "?select=*&order=no.desc");
       bulut = true; banner("");
-      localStorage.setItem(LS, JSON.stringify(data)); // zaxira
+      // Navbatdagi saqlanmagan yozuvlarni yo'qotmaymiz
+      const nav = navbatOl();
+      const bazaId = {};
+      bazadan.forEach(function(y){ bazaId[y.id]=1; });
+      const qoshimcha = nav.filter(function(el){ return el.amal!=="ochir" && !bazaId[el.yozuv.id]; })
+                           .map(function(el){ return el.yozuv; });
+      data = qoshimcha.concat(bazadan);
+      localStorage.setItem(LS, JSON.stringify(data));
+      navbatKorsat();
+      if(nav.length) sinxronla(true);   // fonda avtomatik urinish
       return;
     }catch(e){
       bulut = false;
-      banner("Bazaga ulanib bo'lmadi ("+e.message+"). Yozuvlar shu qurilmadan o'qilmoqda.","xato");
+      banner("Bazaga ulanib bo'lmadi ("+e.message+"). Yozuvlar shu qurilmadan o'qilmoqda — internet tiklangach «Saqlanmagan» tugmasini bosing.","xato");
     }
   }
   try{ data = JSON.parse(localStorage.getItem(LS)||"[]"); }catch{ data=[]; }
+  navbatKorsat();
 }
 
 async function yoz(yozuv, amal){
@@ -298,8 +363,11 @@ async function yoz(yozuv, amal){
       if(amal==="ochir") await sb(JADVAL+"?id=eq."+encodeURIComponent(yozuv.id), {method:"DELETE"});
       banner("");
     }catch(e){
-      banner("Bazaga yozilmadi ("+e.message+"). Ma'lumot shu qurilmada saqlandi.","xato");
+      navbatQosh(yozuv, amal);
+      banner("Bazaga yozilmadi ("+e.message+"). Yozuv qurilmada saqlandi va navbatga qo'yildi — internet tiklangach «Saqlanmagan» tugmasini bosing.","xato");
     }
+  } else if(cfg.url && cfg.key){
+    navbatQosh(yozuv, amal);
   }
   localStorage.setItem(LS, JSON.stringify(data));
   holatKorsat();
@@ -307,9 +375,9 @@ async function yoz(yozuv, amal){
 
 function holatKorsat(){
   $("saveState").textContent = bulut ? "" : "";
-  $("modeNote").textContent = bulut
+  $("modeNote").innerHTML = "<span style='color:var(--pine);font-weight:600'>v2.1 · Otziv moduli</span> — " + (bulut
     ? "Yozuvlar umumiy bazada — barcha xodimlarda bir xil ko'rinadi."
-    : "Yozuvlar faqat shu qurilmada saqlanmoqda. Umumiy bo'lishi uchun «Sozlama» dan bazani ulang.";
+    : "Yozuvlar faqat shu qurilmada saqlanmoqda. Umumiy bo'lishi uchun «Sozlama» dan bazani ulang.");
 }
 
 /* ═══════════ KIRISH ═══════════ */
